@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyclotron Simulation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0a0a1a;
+    color: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 8px;
+    color: #7eb8ff;
+  }
+  .subtitle {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 16px;
+  }
+  .container {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 1100px;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #0d0d24;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  }
+  .panel {
+    background: #14142a;
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 280px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  }
+  .panel h2 {
+    font-size: 1rem;
+    color: #7eb8ff;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #2a2a4a;
+    padding-bottom: 8px;
+  }
+  .control-group {
+    margin-bottom: 16px;
+  }
+  .control-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+    color: #aaa;
+  }
+  .control-group label span {
+    color: #7eb8ff;
+    font-weight: 600;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: #5a9fff;
+    cursor: pointer;
+  }
+  .stats {
+    font-size: 0.82rem;
+    line-height: 1.8;
+  }
+  .stats .row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #1e1e3a;
+    padding: 2px 0;
+  }
+  .stats .val {
+    color: #7eb8ff;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  button {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
+  }
+  .btn-start {
+    background: #2a6abf;
+    color: white;
+  }
+  .btn-start:hover { background: #3578d0; }
+  .btn-reset {
+    background: #3a2a2a;
+    color: #ff8888;
+  }
+  .btn-reset:hover { background: #4a3535; }
+  .legend {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<h1>Cyclotron Particle Accelerator</h1>
+<p class="subtitle">Proton trajectory under magnetic &amp; electric fields &mdash; Kavin Bala, BLiSS Physics (LB274)</p>
+
+<div class="container">
+  <canvas id="canvas" width="560" height="560"></canvas>
+
+  <div class="panel">
+    <h2>Controls</h2>
+
+    <div class="control-group">
+      <label>Magnetic Field B: <span id="bVal">1.00 T</span></label>
+      <input type="range" id="bSlider" min="0.3" max="2.0" step="0.05" value="1.0">
+    </div>
+
+    <div class="control-group">
+      <label>Gap Voltage V: <span id="vVal">1000 V</span></label>
+      <input type="range" id="vSlider" min="200" max="10000" step="100" value="1000">
+    </div>
+
+    <div class="control-group">
+      <label>Simulation Speed: <span id="speedVal">1x</span></label>
+      <input type="range" id="speedSlider" min="1" max="20" step="1" value="5">
+    </div>
+
+    <div class="buttons">
+      <button class="btn-start" id="startBtn">Start</button>
+      <button class="btn-reset" id="resetBtn">Reset</button>
+    </div>
+
+    <h2 style="margin-top: 20px;">Live Statistics</h2>
+    <div class="stats">
+      <div class="row"><span>Gap Crossings</span><span class="val" id="statCross">0</span></div>
+      <div class="row"><span>Speed</span><span class="val" id="statSpeed">0.00 Mm/s</span></div>
+      <div class="row"><span>Kinetic Energy</span><span class="val" id="statKE">0.00 keV</span></div>
+      <div class="row"><span>Orbital Radius</span><span class="val" id="statRadius">0.00 cm</span></div>
+      <div class="row"><span>Cyclotron Freq</span><span class="val" id="statFreq">0.00 MHz</span></div>
+      <div class="row"><span>Time Elapsed</span><span class="val" id="statTime">0.00 &micro;s</span></div>
+    </div>
+
+    <div class="legend">
+      <p><span class="legend-dot" style="background:#3388ff"></span> Left Dee (B-field region)</p>
+      <p><span class="legend-dot" style="background:#ffcc44"></span> Right Dee (B-field region)</p>
+      <p><span class="legend-dot" style="background:#ff4444"></span> Gap (E-field accelerates here)</p>
+      <p><span class="legend-dot" style="background:#00ff88"></span> Proton start position</p>
+      <p style="margin-top:8px; color:#555;">Trajectory color shows speed (purple=slow, yellow=fast)</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Physical Constants ──
+const Q = 1.602e-19;   // proton charge (C)
+const M = 1.673e-27;   // proton mass (kg)
+const eV = 1.602e-19;  // 1 eV in joules
+
+// ── Simulation State ──
+let B, V, R_MAX, dt;
+let x, y, vx, vy;
+let simTime, crossings, stepsSinceCross;
+let trail;        // array of {x, y, speed}
+let running = false;
+let animId = null;
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const CX = W / 2, CY = H / 2;
+
+// Map simulation meters to canvas pixels
+const R_DRAW = 0.12;          // max radius in meters for drawing
+const SCALE = (W / 2 - 30) / R_DRAW;
+
+const GAP_HALF = 0.002;       // meters
+const MIN_CROSS_STEPS = 20;
+
+// ── UI Elements ──
+const bSlider = document.getElementById('bSlider');
+const vSlider = document.getElementById('vSlider');
+const speedSlider = document.getElementById('speedSlider');
+const bValEl = document.getElementById('bVal');
+const vValEl = document.getElementById('vVal');
+const speedValEl = document.getElementById('speedVal');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+bSlider.addEventListener('input', () => {
+  bValEl.textContent = parseFloat(bSlider.value).toFixed(2) + ' T';
+  if (!running) reset();
+});
+vSlider.addEventListener('input', () => {
+  vValEl.textContent = parseInt(vSlider.value) + ' V';
+  if (!running) reset();
+});
+speedSlider.addEventListener('input', () => {
+  speedValEl.textContent = speedSlider.value + 'x';
+});
+
+startBtn.addEventListener('click', () => {
+  if (running) {
+    running = false;
+    startBtn.textContent = 'Resume';
+  } else {
+    running = true;
+    startBtn.textContent = 'Pause';
+    animate();
+  }
+});
+
+resetBtn.addEventListener('click', () => {
+  running = false;
+  startBtn.textContent = 'Start';
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+  reset();
+});
+
+// ── Speed colormap (viridis-like: purple -> teal -> yellow) ──
+function speedColor(t) {
+  // t in [0, 1]
+  t = Math.max(0, Math.min(1, t));
+  let r, g, b;
+  if (t < 0.25) {
+    const s = t / 0.25;
+    r = 68 + s * (49 - 68);
+    g = 1 + s * (104 - 1);
+    b = 84 + s * (142 - 84);
+  } else if (t < 0.5) {
+    const s = (t - 0.25) / 0.25;
+    r = 49 + s * (33 - 49);
+    g = 104 + s * (144 - 104);
+    b = 142 + s * (141 - 142);
+  } else if (t < 0.75) {
+    const s = (t - 0.5) / 0.25;
+    r = 33 + s * (143 - 33);
+    g = 144 + s * (177 - 144);
+    b = 141 + s * (68 - 141);
+  } else {
+    const s = (t - 0.75) / 0.25;
+    r = 143 + s * (253 - 143);
+    g = 177 + s * (231 - 177);
+    b = 68 + s * (37 - 68);
+  }
+  return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
+}
+
+// ── Boris Push ──
+function borisPush(x, y, vx, vy) {
+  const t_boris = Q * B * dt / (2.0 * M);
+  const s_boris = 2.0 * t_boris / (1.0 + t_boris * t_boris);
+
+  const vxp = vx + vy * t_boris;
+  const vyp = vy - vx * t_boris;
+
+  const vxn = vx + vyp * s_boris;
+  const vyn = vy - vxp * s_boris;
+
+  return { x: x + vxn * dt, y: y + vyn * dt, vx: vxn, vy: vyn };
+}
+
+// ── Simulation Reset ──
+function reset() {
+  B = parseFloat(bSlider.value);
+  V = parseFloat(vSlider.value);
+  R_MAX = 0.10;
+  dt = 1e-10;
+
+  const v0 = Math.sqrt(2 * Q * V / M);
+  x = 0; y = 0;
+  vx = v0; vy = 0;
+  simTime = 0;
+  crossings = 1;
+  stepsSinceCross = MIN_CROSS_STEPS;
+  trail = [{ x: 0, y: 0, speed: v0 }];
+
+  updateStats();
+  draw();
+}
+
+// ── Simulation Step ──
+function simStep() {
+  const xOld = x;
+  const result = borisPush(x, y, vx, vy);
+  x = result.x; y = result.y;
+  vx = result.vx; vy = result.vy;
+  simTime += dt;
+  stepsSinceCross++;
+
+  // Gap crossing
+  if (xOld * x < 0 && stepsSinceCross >= MIN_CROSS_STEPS) {
+    const vOldSq = vx * vx + vy * vy;
+    const vNew = Math.sqrt(vOldSq + 2 * Q * V / M);
+    const scale = vNew / Math.sqrt(vOldSq);
+    vx *= scale;
+    vy *= scale;
+    crossings++;
+    stepsSinceCross = 0;
+  }
+
+  const speed = Math.sqrt(vx * vx + vy * vy);
+  trail.push({ x, y, speed });
+
+  return Math.sqrt(x * x + y * y);
+}
+
+// ── Update Stats Display ──
+function updateStats() {
+  const speed = Math.sqrt(vx * vx + vy * vy);
+  const ke = 0.5 * M * speed * speed;
+  const r = Math.sqrt(x * x + y * y);
+  const freq = Q * B / (2 * Math.PI * M);
+
+  document.getElementById('statCross').textContent = crossings;
+  document.getElementById('statSpeed').textContent = (speed / 1e6).toFixed(2) + ' Mm/s';
+  document.getElementById('statKE').textContent = (ke / (1000 * eV)).toFixed(2) + ' keV';
+  document.getElementById('statRadius').textContent = (r * 100).toFixed(2) + ' cm';
+  document.getElementById('statFreq').textContent = (freq / 1e6).toFixed(2) + ' MHz';
+  document.getElementById('statTime').textContent = (simTime * 1e6).toFixed(2) + ' \u00B5s';
+}
+
+// ── Drawing ──
+function toCanvas(sx, sy) {
+  return { cx: CX + sx * SCALE, cy: CY - sy * SCALE };
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw Dees
+  const rPx = R_MAX * SCALE;
+
+  // Left Dee
+  ctx.beginPath();
+  ctx.arc(CX, CY, rPx, 0.5 * Math.PI, 1.5 * Math.PI);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(40, 80, 160, 0.2)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(60, 120, 220, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Right Dee
+  ctx.beginPath();
+  ctx.arc(CX, CY, rPx, -0.5 * Math.PI, 0.5 * Math.PI);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(160, 130, 40, 0.15)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(220, 180, 60, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Gap
+  const gapPx = GAP_HALF * SCALE;
+  ctx.fillStyle = 'rgba(255, 50, 50, 0.12)';
+  ctx.fillRect(CX - gapPx, CY - rPx, gapPx * 2, rPx * 2);
+
+  // Dee labels
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = 'rgba(100, 160, 255, 0.6)';
+  ctx.textAlign = 'center';
+  ctx.fillText('Dee', CX - rPx * 0.5, CY + 5);
+  ctx.fillStyle = 'rgba(220, 180, 60, 0.6)';
+  ctx.fillText('Dee', CX + rPx * 0.5, CY + 5);
+
+  // Trail
+  if (trail.length < 2) return;
+
+  // Find speed range for color mapping
+  let minSpd = trail[0].speed, maxSpd = trail[0].speed;
+  for (const p of trail) {
+    if (p.speed < minSpd) minSpd = p.speed;
+    if (p.speed > maxSpd) maxSpd = p.speed;
+  }
+  const spdRange = maxSpd - minSpd || 1;
+
+  // Draw trail segments
+  ctx.lineWidth = 1.2;
+  for (let i = 1; i < trail.length; i++) {
+    const p0 = toCanvas(trail[i - 1].x, trail[i - 1].y);
+    const p1 = toCanvas(trail[i].x, trail[i].y);
+    const t = (trail[i].speed - minSpd) / spdRange;
+    ctx.beginPath();
+    ctx.moveTo(p0.cx, p0.cy);
+    ctx.lineTo(p1.cx, p1.cy);
+    ctx.strokeStyle = speedColor(t);
+    ctx.stroke();
+  }
+
+  // Particle dot (current position)
+  const pc = toCanvas(x, y);
+  ctx.beginPath();
+  ctx.arc(pc.cx, pc.cy, 5, 0, 2 * Math.PI);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = '#5af';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Start marker
+  ctx.beginPath();
+  ctx.arc(CX, CY, 4, 0, 2 * Math.PI);
+  ctx.fillStyle = '#00ff88';
+  ctx.fill();
+
+  // Colorbar
+  const barX = W - 24, barY = 60, barH = 160, barW = 12;
+  for (let i = 0; i < barH; i++) {
+    ctx.fillStyle = speedColor(1 - i / barH);
+    ctx.fillRect(barX, barY + i, barW, 1);
+  }
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barW, barH);
+  ctx.font = '10px system-ui';
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'left';
+  ctx.fillText((maxSpd / 1e6).toFixed(1), barX - 28, barY + 4);
+  ctx.fillText((minSpd / 1e6).toFixed(1), barX - 28, barY + barH + 4);
+  ctx.save();
+  ctx.translate(barX + barW + 14, barY + barH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('Mm/s', 0, 0);
+  ctx.restore();
+}
+
+// ── Animation Loop ──
+function animate() {
+  if (!running) return;
+
+  const stepsPerFrame = parseInt(speedSlider.value) * 200;
+  let done = false;
+
+  for (let i = 0; i < stepsPerFrame; i++) {
+    const r = simStep();
+    if (r >= R_MAX) {
+      done = true;
+      running = false;
+      startBtn.textContent = 'Done';
+      break;
+    }
+  }
+
+  // Subsample trail for drawing performance
+  if (trail.length > 20000) {
+    const newTrail = [];
+    const skip = Math.floor(trail.length / 15000);
+    for (let i = 0; i < trail.length; i += skip) {
+      newTrail.push(trail[i]);
+    }
+    newTrail.push(trail[trail.length - 1]);
+    trail = newTrail;
+  }
+
+  draw();
+  updateStats();
+
+  if (!done) {
+    animId = requestAnimationFrame(animate);
+  }
+}
+
+// ── Initialize ──
+reset();
+</script>
+</body>
+</html>
