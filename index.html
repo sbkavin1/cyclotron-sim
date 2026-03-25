@@ -124,6 +124,70 @@
     margin-right: 4px;
     vertical-align: middle;
   }
+  /* ── Explanation Section ── */
+  .explainer {
+    max-width: 900px;
+    width: 100%;
+    margin-top: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .card {
+    background: #14142a;
+    border-radius: 12px;
+    padding: 22px 28px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .card h2 {
+    font-size: 1.05rem;
+    color: #7eb8ff;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #2a2a4a;
+    padding-bottom: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .card h2 .arrow {
+    font-size: 0.75rem;
+    transition: transform 0.2s;
+  }
+  .card h2.open .arrow { transform: rotate(180deg); }
+  .card-body {
+    font-size: 0.88rem;
+    line-height: 1.75;
+    color: #bbb;
+    display: none;
+  }
+  .card-body.open { display: block; }
+  .card-body p { margin-bottom: 10px; }
+  .card-body ul { padding-left: 20px; margin-bottom: 10px; }
+  .card-body li { margin-bottom: 4px; }
+  .card-body .eq {
+    display: block;
+    background: #0d0d24;
+    border-left: 3px solid #5a9fff;
+    padding: 8px 14px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: #a8d8ff;
+  }
+  .card-body strong { color: #e0e0e0; }
+  .card-body .tag {
+    display: inline-block;
+    background: #1e2a4a;
+    color: #7eb8ff;
+    font-size: 0.75rem;
+    padding: 1px 7px;
+    border-radius: 10px;
+    margin-right: 4px;
+    font-family: monospace;
+  }
 </style>
 </head>
 <body>
@@ -177,7 +241,99 @@
   </div>
 </div>
 
+<!-- ── Explanation Section ── -->
+<div class="explainer">
+
+  <div class="card">
+    <h2 onclick="toggle(this)">What is a Cyclotron? <span class="arrow">▼</span></h2>
+    <div class="card-body open">
+      <p>A <strong>cyclotron</strong> is a type of particle accelerator invented by Ernest Lawrence in 1930. It uses a combination of a static magnetic field and an alternating electric field to accelerate charged particles (like protons) to very high speeds.</p>
+      <p>The cyclotron consists of two hollow D-shaped metal electrodes called <strong>"Dees"</strong> placed face-to-face with a small gap between them. A strong magnetic field points perpendicular to the plane of the Dees (into or out of the page). An alternating voltage is applied across the gap.</p>
+      <p>Cyclotrons are the foundational technology behind:</p>
+      <ul>
+        <li>Medical isotope production (PET scan tracers)</li>
+        <li>Cancer proton therapy</li>
+        <li>Nuclear physics research (e.g., the Large Hadron Collider uses cyclotron-family designs)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 onclick="toggle(this)">How the Particle Moves — The Physics <span class="arrow">▼</span></h2>
+    <div class="card-body open">
+      <p><strong>Inside the Dees (magnetic field region):</strong></p>
+      <p>The magnetic field exerts a <strong>Lorentz force</strong> on the moving proton. This force is always perpendicular to the velocity, so it curves the path without doing any work — the particle's speed stays constant, but its direction changes. The result is a semicircular arc:</p>
+      <span class="eq">F = q(v × B)&nbsp;&nbsp;&nbsp;→&nbsp;&nbsp;&nbsp;Fₓ = q·vᵧ·B,&nbsp;&nbsp;Fᵧ = −q·vₓ·B</span>
+      <p>The radius of the semicircle depends on how fast the particle is going:</p>
+      <span class="eq">r = mv / (qB)</span>
+      <p><strong>At the gap (electric field region):</strong></p>
+      <p>Each time the proton crosses the gap, the electric field gives it a kick of energy equal to <strong>qV</strong> (charge × voltage). This increases the speed — and therefore the radius of the next semicircle. The particle spirals outward.</p>
+      <span class="eq">ΔKE = qV&nbsp;&nbsp;&nbsp;→&nbsp;&nbsp;&nbsp;v_new = √(v_old² + 2qV/m)</span>
+      <p><strong>Cyclotron frequency:</strong></p>
+      <p>Remarkably, the time for one semicircle is independent of the particle's speed — faster particles trace larger arcs in exactly the same time. This means the electric field can oscillate at a fixed frequency and always be in sync with the particle:</p>
+      <span class="eq">f = qB / (2πm)&nbsp;&nbsp;&nbsp;(independent of speed)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 onclick="toggle(this)">How the Simulation Works — The Code <span class="arrow">▼</span></h2>
+    <div class="card-body">
+      <p>The simulation numerically solves Newton's second law with the Lorentz force, advancing the proton's position and velocity in tiny time steps (dt = 0.1 nanoseconds).</p>
+
+      <p><strong>Boris Algorithm (not Euler):</strong></p>
+      <p>A simple Euler integrator has a well-known bug for magnetic-field simulations: the particle gains energy each step even with no electric field, causing it to spiral outward on its own. Instead, the simulation uses the <strong>Boris push</strong> — the standard method in plasma physics — which exactly conserves speed under a pure magnetic field.</p>
+      <span class="eq">
+        t = qB·dt / (2m)<br>
+        s = 2t / (1 + t²)<br>
+        v' = v⁻ + v⁻ × t<br>
+        v⁺ = v⁻ + v' × s<br>
+        x_new = x + v⁺·dt
+      </span>
+
+      <p><strong>Gap crossing detection:</strong></p>
+      <p>Each simulation step checks whether the proton's x-coordinate changed sign (crossed x = 0). When detected, the velocity is scaled up to add kinetic energy qV — mimicking the electric field kick:</p>
+      <span class="eq">if (x_old × x_new &lt; 0) → apply energy kick</span>
+
+      <p><strong>Termination:</strong></p>
+      <p>The simulation ends when the proton's distance from center reaches R_max = 10 cm, representing the edge of the cyclotron where the particle is ejected.</p>
+
+      <p><strong>Visualization:</strong></p>
+      <p>The trajectory is drawn on an HTML5 Canvas. Each segment of the path is colored by the proton's speed at that point using a viridis-inspired colormap (purple = slow, yellow = fast), showing how the particle accelerates with each orbit.</p>
+
+      <p><strong>Key variables:</strong></p>
+      <ul>
+        <li><span class="tag">Q = 1.602×10⁻¹⁹ C</span> proton charge</li>
+        <li><span class="tag">M = 1.673×10⁻²⁷ kg</span> proton mass</li>
+        <li><span class="tag">B</span> magnetic field strength (adjustable: 0.3 – 2.0 T)</li>
+        <li><span class="tag">V</span> gap voltage (adjustable: 200 – 10,000 V)</li>
+        <li><span class="tag">dt = 1×10⁻¹⁰ s</span> timestep (~650 steps per orbit)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 onclick="toggle(this)">What to Investigate — Try It Yourself <span class="arrow">▼</span></h2>
+    <div class="card-body">
+      <p>Use the sliders to explore how the two parameters affect the cyclotron's behavior:</p>
+      <ul>
+        <li><strong>Increase B (magnetic field):</strong> The spiral becomes tighter — each semicircle has a smaller radius at the same speed, so more orbits are needed to reach the edge. The cyclotron frequency also increases.</li>
+        <li><strong>Decrease B:</strong> The spiral is wider and looser — fewer, larger loops.</li>
+        <li><strong>Increase V (voltage):</strong> The particle gains more energy per gap crossing, so it reaches the exit radius in fewer orbits (fewer crossings). The spiral jumps outward more quickly.</li>
+        <li><strong>Decrease V:</strong> Many more orbits are needed. The gap-crossing count shown in the stats will be much higher.</li>
+      </ul>
+      <p><strong>Predicted relationship:</strong> The number of gap crossings needed scales as <em>n ∝ B²R²/V</em> — a larger cyclotron or stronger field requires more crossings, while higher voltage reduces them.</p>
+      <p><strong>Note on the non-relativistic limit:</strong> This simulation assumes the proton speed is much less than the speed of light. At very high voltages and many crossings, the proton would actually gain relativistic mass, causing it to fall out of sync with the fixed-frequency electric field — a real engineering challenge in cyclotron design.</p>
+    </div>
+  </div>
+
+</div>
+
 <script>
+function toggle(h2) {
+  h2.classList.toggle('open');
+  h2.nextElementSibling.classList.toggle('open');
+}
+
 // ── Physical Constants ──
 const Q = 1.602e-19;   // proton charge (C)
 const M = 1.673e-27;   // proton mass (kg)
